@@ -1,0 +1,746 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Akorith Trail Two</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --ink: #f4f7f2;
+      --muted: #a8b3a6;
+      --panel: rgba(13, 16, 15, 0.74);
+      --line: rgba(244, 247, 242, 0.16);
+      --lime: #9dff6f;
+      --teal: #2be6cf;
+      --amber: #ffc857;
+      --red: #ff5a5f;
+      --black: #0b0d0c;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      background: #0b0d0c;
+      color: var(--ink);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      letter-spacing: 0;
+    }
+
+    body {
+      touch-action: none;
+      user-select: none;
+    }
+
+    #game {
+      position: fixed;
+      inset: 0;
+      width: 100vw;
+      height: 100vh;
+      display: block;
+      background: #0b0d0c;
+    }
+
+    .hud {
+      position: fixed;
+      top: 14px;
+      left: 14px;
+      right: 14px;
+      display: grid;
+      grid-template-columns: repeat(3, minmax(84px, 1fr)) auto;
+      gap: 8px;
+      z-index: 2;
+      pointer-events: none;
+    }
+
+    .metric,
+    .icon-button,
+    .overlay-panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      box-shadow: 0 18px 48px rgba(0, 0, 0, 0.35);
+      backdrop-filter: blur(16px);
+    }
+
+    .metric {
+      min-height: 58px;
+      padding: 9px 12px;
+      border-radius: 8px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      overflow: hidden;
+    }
+
+    .metric span {
+      color: var(--muted);
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: 0;
+      text-transform: uppercase;
+    }
+
+    .metric strong {
+      margin-top: 2px;
+      font-size: clamp(18px, 4.5vw, 28px);
+      line-height: 1;
+      white-space: nowrap;
+    }
+
+    .icon-button {
+      width: 58px;
+      height: 58px;
+      border-radius: 8px;
+      color: var(--ink);
+      font: 900 22px/1 ui-sans-serif, system-ui, sans-serif;
+      cursor: pointer;
+      pointer-events: auto;
+      display: grid;
+      place-items: center;
+      transition: transform 140ms ease, border-color 140ms ease, background 140ms ease;
+    }
+
+    .icon-button:hover {
+      transform: translateY(-1px);
+      border-color: rgba(157, 255, 111, 0.5);
+    }
+
+    .overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 3;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+      pointer-events: none;
+    }
+
+    .overlay[hidden] {
+      display: none;
+    }
+
+    .overlay-panel {
+      width: min(420px, 100%);
+      border-radius: 8px;
+      padding: 22px;
+      pointer-events: auto;
+    }
+
+    .overlay-panel h1 {
+      margin: 0;
+      font-size: clamp(30px, 8vw, 54px);
+      line-height: 0.9;
+      letter-spacing: 0;
+      text-transform: uppercase;
+    }
+
+    .overlay-panel p {
+      min-height: 22px;
+      margin: 12px 0 18px;
+      color: var(--muted);
+      font-size: 15px;
+      line-height: 1.45;
+    }
+
+    .primary {
+      width: 100%;
+      min-height: 50px;
+      border: 0;
+      border-radius: 8px;
+      background: linear-gradient(90deg, var(--lime), var(--teal));
+      color: #07100c;
+      font-size: 15px;
+      font-weight: 900;
+      cursor: pointer;
+      box-shadow: 0 12px 30px rgba(43, 230, 207, 0.18);
+    }
+
+    .primary:active,
+    .icon-button:active {
+      transform: translateY(1px) scale(0.99);
+    }
+
+    .touch-ring {
+      position: fixed;
+      width: 92px;
+      height: 92px;
+      margin: -46px 0 0 -46px;
+      border: 1px solid rgba(244, 247, 242, 0.28);
+      border-radius: 50%;
+      display: none;
+      z-index: 2;
+      pointer-events: none;
+    }
+
+    .touch-ring::after {
+      content: "";
+      position: absolute;
+      inset: 32px;
+      border-radius: 50%;
+      background: rgba(157, 255, 111, 0.65);
+      box-shadow: 0 0 22px rgba(157, 255, 111, 0.45);
+    }
+
+    @media (max-width: 620px) {
+      .hud {
+        grid-template-columns: repeat(3, minmax(0, 1fr)) auto;
+        top: 8px;
+        left: 8px;
+        right: 8px;
+      }
+
+      .metric {
+        min-height: 50px;
+        padding: 8px;
+      }
+
+      .metric span {
+        font-size: 9px;
+      }
+
+      .icon-button {
+        width: 50px;
+        height: 50px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <canvas id="game" aria-label="Akorith Trail Two game"></canvas>
+
+  <div class="hud" aria-live="polite">
+    <div class="metric"><span>Score</span><strong id="score">0</strong></div>
+    <div class="metric"><span>Time</span><strong id="time">60</strong></div>
+    <div class="metric"><span>Best</span><strong id="best">0</strong></div>
+    <button id="pause" class="icon-button" type="button" aria-label="Pause">||</button>
+  </div>
+
+  <div id="touchRing" class="touch-ring"></div>
+
+  <div id="overlay" class="overlay">
+    <section class="overlay-panel">
+      <h1 id="overlayTitle">Akorith Trail Two</h1>
+      <p id="overlayText">The route is live. The sentries are awake.</p>
+      <button id="play" class="primary" type="button">Play</button>
+    </section>
+  </div>
+
+  <script>
+    (() => {
+      const canvas = document.getElementById("game");
+      const ctx = canvas.getContext("2d");
+      const scoreEl = document.getElementById("score");
+      const timeEl = document.getElementById("time");
+      const bestEl = document.getElementById("best");
+      const pauseBtn = document.getElementById("pause");
+      const playBtn = document.getElementById("play");
+      const overlay = document.getElementById("overlay");
+      const overlayTitle = document.getElementById("overlayTitle");
+      const overlayText = document.getElementById("overlayText");
+      const touchRing = document.getElementById("touchRing");
+
+      const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
+      const rand = (min, max) => min + Math.random() * (max - min);
+      const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
+
+      const input = {
+        keys: new Set(),
+        pointer: null
+      };
+
+      const state = {
+        mode: "ready",
+        width: 0,
+        height: 0,
+        dpr: 1,
+        last: 0,
+        score: 0,
+        best: Number(localStorage.getItem("akorith-trail-two-best") || 0),
+        time: 60,
+        shake: 0,
+        player: { x: 0, y: 0, r: 14, vx: 0, vy: 0, speed: 310 },
+        cores: [],
+        sentries: [],
+        particles: [],
+        trail: [],
+        stars: []
+      };
+
+      bestEl.textContent = state.best;
+
+      function resize() {
+        state.dpr = Math.min(window.devicePixelRatio || 1, 2);
+        state.width = window.innerWidth;
+        state.height = window.innerHeight;
+        canvas.width = Math.floor(state.width * state.dpr);
+        canvas.height = Math.floor(state.height * state.dpr);
+        ctx.setTransform(state.dpr, 0, 0, state.dpr, 0, 0);
+        state.stars = Array.from({ length: Math.floor((state.width * state.height) / 12000) }, () => ({
+          x: rand(0, state.width),
+          y: rand(0, state.height),
+          r: rand(0.7, 1.9),
+          a: rand(0.16, 0.72)
+        }));
+        if (state.player.x === 0 && state.player.y === 0) {
+          state.player.x = state.width * 0.5;
+          state.player.y = state.height * 0.58;
+        }
+      }
+
+      function randomSafePoint(margin = 70) {
+        let point = { x: rand(margin, state.width - margin), y: rand(margin + 40, state.height - margin) };
+        for (let i = 0; i < 40 && dist(point, state.player) < 150; i++) {
+          point = { x: rand(margin, state.width - margin), y: rand(margin + 40, state.height - margin) };
+        }
+        return point;
+      }
+
+      function makeCore() {
+        const p = randomSafePoint(64);
+        return {
+          x: p.x,
+          y: p.y,
+          r: rand(9, 15),
+          spin: rand(0, Math.PI * 2),
+          pulse: rand(0, Math.PI * 2)
+        };
+      }
+
+      function makeSentry(index) {
+        const p = randomSafePoint(90);
+        const angle = rand(0, Math.PI * 2);
+        const speed = 105 + index * 16;
+        return {
+          x: p.x,
+          y: p.y,
+          r: 18,
+          vx: Math.cos(angle) * speed,
+          vy: Math.sin(angle) * speed,
+          spin: rand(0, Math.PI * 2)
+        };
+      }
+
+      function burst(x, y, color, count) {
+        for (let i = 0; i < count; i++) {
+          const angle = rand(0, Math.PI * 2);
+          const speed = rand(45, 260);
+          state.particles.push({
+            x,
+            y,
+            vx: Math.cos(angle) * speed,
+            vy: Math.sin(angle) * speed,
+            life: rand(0.34, 0.8),
+            max: 0.8,
+            size: rand(1.5, 4.2),
+            color
+          });
+        }
+      }
+
+      function resetGame() {
+        state.score = 0;
+        state.time = 60;
+        state.shake = 0;
+        state.player = {
+          x: state.width * 0.5,
+          y: state.height * 0.58,
+          r: 14,
+          vx: 0,
+          vy: 0,
+          speed: 310
+        };
+        state.cores = Array.from({ length: 7 }, makeCore);
+        state.sentries = Array.from({ length: 4 }, (_, i) => makeSentry(i));
+        state.particles = [];
+        state.trail = [];
+        input.pointer = null;
+        touchRing.style.display = "none";
+        setMode("playing");
+        updateHud();
+      }
+
+      function setMode(mode, message = "") {
+        state.mode = mode;
+        const isPlaying = mode === "playing";
+        overlay.hidden = isPlaying;
+        pauseBtn.textContent = mode === "paused" ? ">" : "||";
+        pauseBtn.setAttribute("aria-label", mode === "paused" ? "Resume" : "Pause");
+
+        if (mode === "ready") {
+          overlayTitle.textContent = "Akorith Trail Two";
+          overlayText.textContent = "The route is live. The sentries are awake.";
+          playBtn.textContent = "Play";
+        }
+
+        if (mode === "paused") {
+          overlayTitle.textContent = "Paused";
+          overlayText.textContent = "";
+          playBtn.textContent = "Resume";
+        }
+
+        if (mode === "ended") {
+          overlayTitle.textContent = message || "Run Complete";
+          overlayText.textContent = "Score " + state.score + " / Best " + state.best;
+          playBtn.textContent = "Restart";
+        }
+      }
+
+      function endGame(message) {
+        state.best = Math.max(state.best, state.score);
+        localStorage.setItem("akorith-trail-two-best", String(state.best));
+        updateHud();
+        setMode("ended", message);
+        burst(state.player.x, state.player.y, "#ff5a5f", 42);
+      }
+
+      function updateHud() {
+        scoreEl.textContent = state.score;
+        timeEl.textContent = Math.max(0, Math.ceil(state.time));
+        bestEl.textContent = state.best;
+      }
+
+      function axis() {
+        let x = 0;
+        let y = 0;
+        if (input.keys.has("ArrowLeft") || input.keys.has("a")) x -= 1;
+        if (input.keys.has("ArrowRight") || input.keys.has("d")) x += 1;
+        if (input.keys.has("ArrowUp") || input.keys.has("w")) y -= 1;
+        if (input.keys.has("ArrowDown") || input.keys.has("s")) y += 1;
+
+        if (x || y) {
+          const length = Math.hypot(x, y);
+          return { x: x / length, y: y / length };
+        }
+
+        if (input.pointer) {
+          const dx = input.pointer.x - state.player.x;
+          const dy = input.pointer.y - state.player.y;
+          const length = Math.hypot(dx, dy);
+          if (length > 10) return { x: dx / length, y: dy / length };
+        }
+
+        return { x: 0, y: 0 };
+      }
+
+      function update(dt) {
+        if (state.mode !== "playing") return;
+
+        state.time -= dt;
+        if (state.time <= 0) {
+          state.time = 0;
+          endGame("Time");
+          return;
+        }
+
+        const move = axis();
+        const speedBoost = Math.min(110, state.score * 0.85);
+        state.player.vx += (move.x * (state.player.speed + speedBoost) - state.player.vx) * 0.16;
+        state.player.vy += (move.y * (state.player.speed + speedBoost) - state.player.vy) * 0.16;
+        state.player.x += state.player.vx * dt;
+        state.player.y += state.player.vy * dt;
+
+        const pad = state.player.r + 6;
+        const clampedX = clamp(state.player.x, pad, state.width - pad);
+        const clampedY = clamp(state.player.y, pad + 54, state.height - pad);
+        if (clampedX !== state.player.x || clampedY !== state.player.y) {
+          state.player.vx *= -0.32;
+          state.player.vy *= -0.32;
+          state.shake = Math.max(state.shake, 5);
+        }
+        state.player.x = clampedX;
+        state.player.y = clampedY;
+
+        state.trail.unshift({
+          x: state.player.x,
+          y: state.player.y,
+          r: state.player.r,
+          life: 1
+        });
+        if (state.trail.length > 36) state.trail.pop();
+        for (const bit of state.trail) bit.life -= dt * 1.45;
+
+        for (let i = state.cores.length - 1; i >= 0; i--) {
+          const core = state.cores[i];
+          core.spin += dt * 2.4;
+          core.pulse += dt * 5;
+          if (dist(core, state.player) < core.r + state.player.r) {
+            state.score += 10;
+            state.time = Math.min(60, state.time + 1.6);
+            burst(core.x, core.y, "#9dff6f", 18);
+            state.cores.splice(i, 1, makeCore());
+            if (state.score > 0 && state.score % 70 === 0 && state.sentries.length < 9) {
+              state.sentries.push(makeSentry(state.sentries.length));
+            }
+          }
+        }
+
+        for (const sentry of state.sentries) {
+          sentry.spin += dt * 2.2;
+          sentry.x += sentry.vx * dt;
+          sentry.y += sentry.vy * dt;
+
+          if (sentry.x < sentry.r || sentry.x > state.width - sentry.r) sentry.vx *= -1;
+          if (sentry.y < sentry.r + 56 || sentry.y > state.height - sentry.r) sentry.vy *= -1;
+          sentry.x = clamp(sentry.x, sentry.r, state.width - sentry.r);
+          sentry.y = clamp(sentry.y, sentry.r + 56, state.height - sentry.r);
+
+          if (dist(sentry, state.player) < sentry.r + state.player.r - 2) {
+            state.shake = 12;
+            endGame("Intercepted");
+            return;
+          }
+        }
+
+        for (let i = state.particles.length - 1; i >= 0; i--) {
+          const p = state.particles[i];
+          p.life -= dt;
+          p.x += p.vx * dt;
+          p.y += p.vy * dt;
+          p.vx *= 0.985;
+          p.vy *= 0.985;
+          if (p.life <= 0) state.particles.splice(i, 1);
+        }
+
+        state.shake = Math.max(0, state.shake - dt * 18);
+        updateHud();
+      }
+
+      function drawDiamond(x, y, r, rotation, fill, stroke) {
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.rotate(rotation);
+        ctx.beginPath();
+        ctx.moveTo(0, -r);
+        ctx.lineTo(r * 0.86, 0);
+        ctx.lineTo(0, r);
+        ctx.lineTo(-r * 0.86, 0);
+        ctx.closePath();
+        ctx.fillStyle = fill;
+        ctx.fill();
+        ctx.strokeStyle = stroke;
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      function drawSentry(sentry) {
+        ctx.save();
+        ctx.translate(sentry.x, sentry.y);
+        ctx.rotate(Math.atan2(sentry.vy, sentry.vx) + Math.PI / 2 + Math.sin(sentry.spin) * 0.18);
+        ctx.shadowBlur = 22;
+        ctx.shadowColor = "rgba(255, 90, 95, 0.75)";
+        ctx.beginPath();
+        ctx.moveTo(0, -sentry.r * 1.2);
+        ctx.lineTo(sentry.r, sentry.r * 0.8);
+        ctx.lineTo(0, sentry.r * 0.38);
+        ctx.lineTo(-sentry.r, sentry.r * 0.8);
+        ctx.closePath();
+        ctx.fillStyle = "#ff5a5f";
+        ctx.fill();
+        ctx.shadowBlur = 0;
+        ctx.strokeStyle = "rgba(255, 248, 230, 0.72)";
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      function drawPlayer() {
+        const p = state.player;
+        const angle = Math.atan2(p.vy, p.vx || 1);
+        ctx.save();
+        ctx.translate(p.x, p.y);
+        ctx.rotate(angle);
+        ctx.shadowBlur = 28;
+        ctx.shadowColor = "rgba(43, 230, 207, 0.9)";
+        ctx.beginPath();
+        ctx.moveTo(18, 0);
+        ctx.lineTo(-12, 12);
+        ctx.lineTo(-7, 0);
+        ctx.lineTo(-12, -12);
+        ctx.closePath();
+        ctx.fillStyle = "#2be6cf";
+        ctx.fill();
+        ctx.shadowBlur = 0;
+        ctx.strokeStyle = "rgba(244, 247, 242, 0.84)";
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        ctx.restore();
+
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, 25 + Math.sin(performance.now() * 0.009) * 3, 0, Math.PI * 2);
+        ctx.strokeStyle = "rgba(157, 255, 111, 0.22)";
+        ctx.lineWidth = 2;
+        ctx.stroke();
+      }
+
+      function render(timestamp) {
+        const w = state.width;
+        const h = state.height;
+        const shakeX = state.shake ? rand(-state.shake, state.shake) : 0;
+        const shakeY = state.shake ? rand(-state.shake, state.shake) : 0;
+
+        ctx.clearRect(0, 0, w, h);
+        ctx.save();
+        ctx.translate(shakeX, shakeY);
+
+        const bg = ctx.createLinearGradient(0, 0, w, h);
+        bg.addColorStop(0, "#0b0d0c");
+        bg.addColorStop(0.48, "#142019");
+        bg.addColorStop(1, "#1c1114");
+        ctx.fillStyle = bg;
+        ctx.fillRect(0, 0, w, h);
+
+        ctx.fillStyle = "rgba(244, 247, 242, 0.1)";
+        for (const star of state.stars) {
+          ctx.globalAlpha = star.a + Math.sin(timestamp * 0.001 + star.x) * 0.08;
+          ctx.beginPath();
+          ctx.arc(star.x, star.y, star.r, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.globalAlpha = 1;
+
+        ctx.strokeStyle = "rgba(244, 247, 242, 0.06)";
+        ctx.lineWidth = 1;
+        const grid = 46;
+        for (let x = (timestamp * -0.012) % grid; x < w; x += grid) {
+          ctx.beginPath();
+          ctx.moveTo(x, 0);
+          ctx.lineTo(x, h);
+          ctx.stroke();
+        }
+        for (let y = (timestamp * 0.018) % grid; y < h; y += grid) {
+          ctx.beginPath();
+          ctx.moveTo(0, y);
+          ctx.lineTo(w, y);
+          ctx.stroke();
+        }
+
+        for (let i = state.trail.length - 1; i >= 0; i--) {
+          const bit = state.trail[i];
+          if (bit.life <= 0) continue;
+          ctx.beginPath();
+          ctx.arc(bit.x, bit.y, bit.r * (0.5 + bit.life * 0.65), 0, Math.PI * 2);
+          ctx.fillStyle = "rgba(43, 230, 207, " + (bit.life * 0.24) + ")";
+          ctx.fill();
+        }
+
+        for (const core of state.cores) {
+          const pulse = Math.sin(core.pulse) * 3;
+          ctx.beginPath();
+          ctx.arc(core.x, core.y, core.r + 11 + pulse, 0, Math.PI * 2);
+          ctx.strokeStyle = "rgba(157, 255, 111, 0.18)";
+          ctx.lineWidth = 3;
+          ctx.stroke();
+          drawDiamond(core.x, core.y, core.r, core.spin, "#ffc857", "rgba(255, 255, 255, 0.72)");
+        }
+
+        for (const sentry of state.sentries) drawSentry(sentry);
+
+        for (const p of state.particles) {
+          const alpha = clamp(p.life / p.max, 0, 1);
+          ctx.globalAlpha = alpha;
+          ctx.fillStyle = p.color;
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, p.size * alpha, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.globalAlpha = 1;
+
+        drawPlayer();
+
+        ctx.fillStyle = "rgba(0, 0, 0, 0.18)";
+        for (let y = 0; y < h; y += 5) ctx.fillRect(0, y, w, 1);
+
+        ctx.restore();
+      }
+
+      function loop(timestamp) {
+        const dt = Math.min(0.033, (timestamp - state.last) / 1000 || 0);
+        state.last = timestamp;
+        update(dt);
+        render(timestamp);
+        requestAnimationFrame(loop);
+      }
+
+      function togglePause() {
+        if (state.mode === "playing") setMode("paused");
+        else if (state.mode === "paused") setMode("playing");
+      }
+
+      playBtn.addEventListener("click", () => {
+        if (state.mode === "paused") setMode("playing");
+        else resetGame();
+      });
+
+      pauseBtn.addEventListener("click", () => {
+        if (state.mode === "ready") return;
+        if (state.mode === "ended") {
+          resetGame();
+          return;
+        }
+        togglePause();
+      });
+
+      window.addEventListener("keydown", (event) => {
+        const key = event.key.length === 1 ? event.key.toLowerCase() : event.key;
+        if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", " "].includes(event.key)) {
+          event.preventDefault();
+        }
+        if (key === " " || key === "Enter") {
+          if (state.mode === "ready" || state.mode === "ended") resetGame();
+          else togglePause();
+          return;
+        }
+        if (key === "p") togglePause();
+        input.keys.add(key);
+      });
+
+      window.addEventListener("keyup", (event) => {
+        const key = event.key.length === 1 ? event.key.toLowerCase() : event.key;
+        input.keys.delete(key);
+      });
+
+      canvas.addEventListener("pointerdown", (event) => {
+        if (state.mode !== "playing") return;
+        canvas.setPointerCapture(event.pointerId);
+        input.pointer = { x: event.clientX, y: event.clientY };
+        touchRing.style.display = "block";
+        touchRing.style.left = event.clientX + "px";
+        touchRing.style.top = event.clientY + "px";
+      });
+
+      canvas.addEventListener("pointermove", (event) => {
+        if (!input.pointer) return;
+        input.pointer.x = event.clientX;
+        input.pointer.y = event.clientY;
+        touchRing.style.left = event.clientX + "px";
+        touchRing.style.top = event.clientY + "px";
+      });
+
+      canvas.addEventListener("pointerup", () => {
+        input.pointer = null;
+        touchRing.style.display = "none";
+      });
+
+      canvas.addEventListener("pointercancel", () => {
+        input.pointer = null;
+        touchRing.style.display = "none";
+      });
+
+      window.addEventListener("resize", resize);
+      resize();
+      state.cores = Array.from({ length: 7 }, makeCore);
+      state.sentries = Array.from({ length: 4 }, (_, i) => makeSentry(i));
+      updateHud();
+      requestAnimationFrame(loop);
+    })();
+  </script>
+</body>
+</html>
